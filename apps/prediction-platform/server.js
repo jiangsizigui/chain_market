@@ -1,5 +1,6 @@
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const { URL } = require('url');
 const { randomUUID } = require('crypto');
 const { readJson, writeJson } = require('../common/jsonStore');
@@ -7,6 +8,7 @@ const { send, sendText, parseBody } = require('../common/http');
 
 const port = Number(process.env.PORT || 4000);
 const dbPath = path.join(__dirname, '../../data/prediction.json');
+const publicDir = path.join(__dirname, 'public');
 
 const initData = {
   users: [],
@@ -52,27 +54,54 @@ function userPositions(db, walletAddress) {
   return position;
 }
 
+function withCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function serveStatic(req, res, pathname) {
+  const resolvedPath = pathname === '/' ? '/index.html' : pathname;
+  const fullPath = path.join(publicDir, resolvedPath);
+  if (!fullPath.startsWith(publicDir)) return false;
+  if (!fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) return false;
+
+  const ext = path.extname(fullPath);
+  const typeMap = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8'
+  };
+
+  res.writeHead(200, { 'Content-Type': typeMap[ext] || 'application/octet-stream' });
+  fs.createReadStream(fullPath).pipe(res);
+  return true;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   const pathName = url.pathname;
 
+  withCors(res);
+
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
+    res.writeHead(204);
     return res.end();
+  }
+
+  if (req.method === 'GET' && !pathName.startsWith('/api/')) {
+    if (serveStatic(req, res, pathName)) return;
   }
 
   try {
     const db = loadDb();
 
-    if (req.method === 'GET' && pathName === '/health') {
+    if (req.method === 'GET' && (pathName === '/api/health' || pathName === '/health')) {
       return send(res, 200, { service: 'prediction-platform', status: 'ok' });
     }
 
-    if (req.method === 'POST' && pathName === '/auth/metamask') {
+    if (req.method === 'POST' && pathName === '/api/auth/metamask') {
       const { walletAddress } = await parseBody(req);
       if (!walletAddress) return send(res, 400, { message: 'walletAddress is required' });
       const user = ensureUser(db, walletAddress);
@@ -80,13 +109,20 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { message: '登录成功', user });
     }
 
-    if (req.method === 'GET' && pathName === '/markets') {
+    if (req.method === 'GET' && pathName === '/api/markets') {
       const status = url.searchParams.get('status');
       const data = status ? db.markets.filter((m) => m.status === status) : db.markets;
       return send(res, 200, data);
     }
 
-    if (req.method === 'POST' && pathName === '/markets') {
+    const marketDetail = pathName.match(/^\/api\/markets\/([^/]+)$/);
+    if (req.method === 'GET' && marketDetail) {
+      const market = findMarket(db, marketDetail[1]);
+      if (!market) return send(res, 404, { message: 'market not found' });
+      return send(res, 200, market);
+    }
+
+    if (req.method === 'POST' && pathName === '/api/markets') {
       const { title, description, predictionType, endTime, creatorWallet, outcomes } = await parseBody(req);
       if (!title || !description || !predictionType || !endTime || !creatorWallet) {
         return send(res, 400, { message: 'missing required fields' });
@@ -126,7 +162,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 201, { message: '市场创建成功，待管理员审核', market });
     }
 
-    const marketMatch = pathName.match(/^\/markets\/([^/]+)$/);
+    const marketMatch = pathName.match(/^\/api\/markets\/([^/]+)$/);
     if (req.method === 'PUT' && marketMatch) {
       const market = findMarket(db, marketMatch[1]);
       if (!market) return send(res, 404, { message: 'market not found' });
@@ -144,7 +180,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { message: '市场删除成功' });
     }
 
-    const reviewMatch = pathName.match(/^\/markets\/([^/]+)\/admin-review$/);
+    const reviewMatch = pathName.match(/^\/api\/markets\/([^/]+)\/admin-review$/);
     if (req.method === 'POST' && reviewMatch) {
       const market = findMarket(db, reviewMatch[1]);
       if (!market) return send(res, 404, { message: 'market not found' });
@@ -154,7 +190,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { message: '审核完成', market });
     }
 
-    const tradeMatch = pathName.match(/^\/markets\/([^/]+)\/trades$/);
+    const tradeMatch = pathName.match(/^\/api\/markets\/([^/]+)\/trades$/);
     if (req.method === 'POST' && tradeMatch) {
       const market = findMarket(db, tradeMatch[1]);
       if (!market) return send(res, 404, { message: 'market not found' });
@@ -191,7 +227,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 201, { message: '交易成功', trade, market });
     }
 
-    const proposalMatch = pathName.match(/^\/markets\/([^/]+)\/result-proposal$/);
+    const proposalMatch = pathName.match(/^\/api\/markets\/([^/]+)\/result-proposal$/);
     if (req.method === 'POST' && proposalMatch) {
       const market = findMarket(db, proposalMatch[1]);
       if (!market) return send(res, 404, { message: 'market not found' });
@@ -203,7 +239,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { message: '已进入投票确认阶段', market });
     }
 
-    const voteMatch = pathName.match(/^\/markets\/([^/]+)\/votes$/);
+    const voteMatch = pathName.match(/^\/api\/markets\/([^/]+)\/votes$/);
     if (req.method === 'POST' && voteMatch) {
       const market = findMarket(db, voteMatch[1]);
       if (!market) return send(res, 404, { message: 'market not found' });
@@ -214,7 +250,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 201, { message: '投票成功' });
     }
 
-    const finalMatch = pathName.match(/^\/markets\/([^/]+)\/finalize$/);
+    const finalMatch = pathName.match(/^\/api\/markets\/([^/]+)\/finalize$/);
     if (req.method === 'POST' && finalMatch) {
       const market = findMarket(db, finalMatch[1]);
       if (!market) return send(res, 404, { message: 'market not found' });
@@ -235,22 +271,22 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { message: '市场结算完成', marketId: market.id, finalResult, totalPool, winnerPool, payouts });
     }
 
-    if (req.method === 'GET' && pathName === '/admin/users') return send(res, 200, db.users);
-    if (req.method === 'GET' && pathName === '/admin/markets') return send(res, 200, db.markets);
+    if (req.method === 'GET' && pathName === '/api/admin/users') return send(res, 200, db.users);
+    if (req.method === 'GET' && pathName === '/api/admin/markets') return send(res, 200, db.markets);
 
-    if (req.method === 'GET' && pathName === '/admin/ai-config') {
+    if (req.method === 'GET' && pathName === '/api/admin/ai-config') {
       const { apiKey, ...safe } = db.aiApiConfig || initData.aiApiConfig;
       return send(res, 200, { ...safe, apiKeyMasked: `${String(apiKey).slice(0, 4)}***` });
     }
 
-    if (req.method === 'PUT' && pathName === '/admin/ai-config') {
+    if (req.method === 'PUT' && pathName === '/api/admin/ai-config') {
       const patch = await parseBody(req);
       db.aiApiConfig = { ...(db.aiApiConfig || initData.aiApiConfig), ...patch };
       saveDb(db);
       return send(res, 200, { message: 'AI API 配置更新成功' });
     }
 
-    const disableMatch = pathName.match(/^\/admin\/users\/([^/]+)\/disable$/);
+    const disableMatch = pathName.match(/^\/api\/admin\/users\/([^/]+)\/disable$/);
     if (req.method === 'POST' && disableMatch) {
       const user = db.users.find((u) => u.walletAddress === disableMatch[1]);
       if (!user) return send(res, 404, { message: 'user not found' });
@@ -259,15 +295,15 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { message: '用户已禁用', user });
     }
 
-    if (req.method === 'GET' && pathName === '/admin/trades') return send(res, 200, db.trades);
+    if (req.method === 'GET' && pathName === '/api/admin/trades') return send(res, 200, db.trades);
 
-    if (req.method === 'GET' && pathName === '/admin/trades/export.csv') {
+    if (req.method === 'GET' && pathName === '/api/admin/trades/export.csv') {
       const head = 'tradeId,marketId,walletAddress,amount,direction,tradedAt';
       const body = db.trades.map((t) => [t.id, t.marketId, t.walletAddress, t.amount, t.direction, t.tradedAt].join(','));
       return sendText(res, 200, [head, ...body].join('\n'));
     }
 
-    const posMatch = pathName.match(/^\/users\/([^/]+)\/positions$/);
+    const posMatch = pathName.match(/^\/api\/users\/([^/]+)\/positions$/);
     if (req.method === 'GET' && posMatch) {
       return send(res, 200, { walletAddress: posMatch[1], positions: userPositions(db, posMatch[1]) });
     }
