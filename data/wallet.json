@@ -1,0 +1,12 @@
+{
+  "users": [],
+  "faucetLogs": [],
+  "faucetCounter": {},
+  "config": {
+    "distributorPrivateKey": "demo-private-key",
+    "tokenContractAddress": "0xDemoTokenContract",
+    "rpcEndpoint": "http://localhost:8545",
+    "amountPerClaim": 100,
+    "maxClaimsPerDay": 5
+  }
+}

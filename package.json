@@ -1,0 +1,23 @@
+{
+  "name": "chain-market-monorepo",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Graduation demo: prediction market + wallet faucet + analytics",
+  "scripts": {
+    "dev:prediction": "node apps/prediction-platform/server.js",
+    "dev:wallet": "node apps/wallet-platform/server.js",
+    "dev:analytics": "node apps/analytics-platform/server.js",
+    "check": "node --check apps/prediction-platform/server.js && node --check apps/wallet-platform/server.js && node --check apps/analytics-platform/server.js",
+    "test:smoke": "node scripts/smoke-test.js",
+    "deps:doctor": "bash scripts/dependency-doctor.sh"
+  },
+  "dependencies": {
+    "axios": "^1.8.2",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
+    "uuid": "^11.1.0"
+  }
+}

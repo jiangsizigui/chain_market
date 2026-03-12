@@ -1,0 +1,12 @@
+{
+  "users": [],
+  "markets": [],
+  "trades": [],
+  "votes": [],
+  "aiApiConfig": {
+    "apiKey": "demo-key",
+    "apiBaseUrl": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "rateLimitPerMin": 60
+  }
+}
