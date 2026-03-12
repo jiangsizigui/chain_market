@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>预测市场平台</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>预测市场平台（毕设演示）</h1>
+    <div class="row">
+      <input id="walletInput" placeholder="输入钱包地址，例如 0xabc" />
+      <button id="loginBtn">MetaMask 登录（模拟）</button>
+      <span id="loginState">未登录</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>创建预测市场</h2>
+      <div class="grid">
+        <input id="title" placeholder="标题" />
+        <input id="description" placeholder="描述" />
+        <select id="predictionType">
+          <option value="BINARY">二元预测</option>
+          <option value="MULTI">多结果预测</option>
+          <option value="NUMERIC">数值预测（UP/DOWN）</option>
+        </select>
+        <input id="outcomes" placeholder="多结果选项，用逗号分隔（仅 MULTI 可选）" />
+        <input id="endTime" placeholder="结束时间，例如 2026-12-31T00:00:00Z" />
+      </div>
+      <button id="createBtn">创建市场</button>
+    </section>
+
+    <section class="card">
+      <h2>市场列表</h2>
+      <button id="refreshBtn">刷新列表</button>
+      <div id="marketList"></div>
+    </section>
+
+    <section class="card">
+      <h2>管理员操作</h2>
+      <div class="row">
+        <input id="adminMarketId" placeholder="市场ID" />
+        <button id="approveBtn">审核通过</button>
+        <button id="rejectBtn">审核拒绝</button>
+      </div>
+      <div class="row">
+        <input id="finalMarketId" placeholder="结算市场ID" />
+        <input id="finalResult" placeholder="结果（如 YES / A）" />
+        <button id="finalizeBtn">最终结算</button>
+      </div>
+      <div class="row">
+        <input id="aiBaseUrl" placeholder="AI API 地址" />
+        <input id="aiModel" placeholder="模型名" />
+        <button id="saveAiBtn">保存 AI 配置</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>日志输出</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
