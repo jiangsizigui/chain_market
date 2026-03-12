@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  prediction-platform:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm run dev:prediction"
+    ports:
+      - "4000:4000"
+
+  wallet-platform:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm run dev:wallet"
+    ports:
+      - "4001:4001"
+
+  analytics-platform:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm run dev:analytics"
+    ports:
+      - "4002:4002"

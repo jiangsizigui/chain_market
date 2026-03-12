@@ -1,0 +1,8 @@
+{
+  "snapshots": [],
+  "collectorConfig": {
+    "enabled": false,
+    "sourceUrl": "https://gamma-api.polymarket.com/markets",
+    "intervalMs": 1800000
+  }
+}
